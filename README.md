@@ -4,10 +4,8 @@ An End-to-End Implementation for Building, Deploying, and Automating a Credit Ri
 
 ## Features
 
-- **Data Processing class**: 
-  -
-  -
-  -
+- **EDA Notebook**: 
+
 
 
 ## Project Structure
@@ -76,6 +74,7 @@ credit-risk-model/
 5. Open a Pull Request
 
 ## Credit Scoring Business Understanding
+
 1) Basel II (and subsequent supervisory guidance) makes banks responsible for credible internal risk estimates and requires robust model governance: conceptual soundness, independent validation, ongoing monitoring, and clear documentation of model design, data, assumptions and use. In practice this means regulators and supervisors expect models used for credit risk or regulatory capital to be auditable and explainable — not black boxes — so that errors, biases or changes in performance can be detected and addressed. 
 
 
