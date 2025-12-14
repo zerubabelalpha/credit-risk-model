@@ -1,5 +1,3 @@
-# src/inference.py
-
 import joblib
 import mlflow
 import pandas as pd
