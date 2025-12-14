@@ -3,6 +3,12 @@ matplotlib
 seaborn
 pandas
 pytest
-dvc
 xgboost
-scikit-learn 
+scikit-learn
+mlflow 
+fastapi
+uvicorn
+joblib
+pydantic
+lightgbm
+
