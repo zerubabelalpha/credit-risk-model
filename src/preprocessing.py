@@ -133,4 +133,11 @@ def run_preprocessing():
     print("✅ Preprocessing pipeline saved")
 
 
-run_preprocessing()
+def main():
+    print("🚀 Starting preprocessing pipeline...")
+    run_preprocessing()
+    print("🎯 Preprocessing completed successfully")
+
+
+if __name__ == "__main__":
+    main()
