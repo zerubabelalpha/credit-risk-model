@@ -3,7 +3,6 @@ matplotlib
 seaborn
 pandas
 pytest
-xgboost
 scikit-learn
 mlflow 
 fastapi
@@ -11,4 +10,3 @@ uvicorn
 joblib
 pydantic
 lightgbm
-
