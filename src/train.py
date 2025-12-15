@@ -1,229 +1,168 @@
 import os
 import joblib
 import pandas as pd
-import numpy as np
 import mlflow
 import mlflow.sklearn
 import mlflow.lightgbm
 
 from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.pipeline import Pipeline
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import (
-    accuracy_score,
-    precision_score,
-    recall_score,
-    f1_score,
-    roc_auc_score
-)
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, roc_auc_score
 from lightgbm import LGBMClassifier
 
+# --------------------- CONFIG ---------------------
 
-# =====================================================
-# CONFIG
-# =====================================================
+PROCESSED_DATA_PATH = "data/processed/processed_data.csv"
+PIPELINE_PATH = "models/preprocessing_pipeline.joblib"
+MODEL_DIR = "models/trained"
 
-PROCESSED_DATA_PATH = "../data/processed/processed_data.csv"
-PIPELINE_PATH = "../models/transformer_pipeline.joblib"
-MODEL_OUTPUT_DIR = "../models/trained"
-
-RANDOM_STATE = 42
 TEST_SIZE = 0.2
-EXPERIMENT_NAME = "credit_risk_model_training"
+RANDOM_STATE = 42
 
+# MLflow local tracking (file-based)
+mlflow.set_tracking_uri("file:./mlruns")
+mlflow.set_experiment("credit-risk-demo")
 
-# =====================================================
-# UTILITY FUNCTIONS
-# =====================================================
+os.makedirs(MODEL_DIR, exist_ok=True)
 
-def load_data():
-    df = pd.read_csv(PROCESSED_DATA_PATH)
+# --------------------- Utility ---------------------
 
-    if "is_high_risk" not in df.columns:
-        raise ValueError("Target column 'is_high_risk' not found.")
+def evaluate_model(pipeline, X_test, y_test):
+    y_pred = pipeline.predict(X_test)
+    y_prob = pipeline.predict_proba(X_test)[:, 1]
 
-    y = df["is_high_risk"]
-    X = df.drop(columns=["is_high_risk"])
-
-    return X, y
-
-
-def load_preprocessor():
-    artifacts = joblib.load(PIPELINE_PATH)
-    return artifacts["preprocessor"]
-
-
-def evaluate_model(y_true, y_pred, y_prob):
     return {
-        "accuracy": accuracy_score(y_true, y_pred),
-        "precision": precision_score(y_true, y_pred),
-        "recall": recall_score(y_true, y_pred),
-        "f1_score": f1_score(y_true, y_pred),
-        "roc_auc": roc_auc_score(y_true, y_prob)
-    }
+        "accuracy": accuracy_score(y_test, y_pred),
+        "precision": precision_score(y_test, y_pred),
+        "recall": recall_score(y_test, y_pred), # Sensitivity
+        "f1_score": f1_score(y_test, y_pred),
+        "roc_auc": roc_auc_score(y_test, y_prob)
+        }
 
+# --------------------- Load data ---------------------
 
-# =====================================================
-# MODEL TRAINING FUNCTION
-# =====================================================
+print("📥 Loading processed data...")
+df = pd.read_csv(PROCESSED_DATA_PATH)
+y = df.pop("is_high_risk")
+X = df
 
-def train_and_log_model(
-    model_name,
-    model,
-    param_grid,
-    X_train,
-    y_train,
-    X_test,
-    y_test
-):
-    with mlflow.start_run(run_name=model_name):
+print("📦 Loading preprocessing pipeline...")
+preprocessor = joblib.load(PIPELINE_PATH)
 
-        grid = GridSearchCV(
-            model,
-            param_grid,
-            scoring="roc_auc",
-            cv=5,
-            n_jobs=-1
-        )
-
-        grid.fit(X_train, y_train)
-
-        best_model = grid.best_estimator_
-
-        y_pred = best_model.predict(X_test)
-        y_prob = best_model.predict_proba(X_test)[:, 1]
-
-        metrics = evaluate_model(y_test, y_pred, y_prob)
-
-        # -------------------------
-        # MLflow logging
-        # -------------------------
-        mlflow.log_params(grid.best_params_)
-        mlflow.log_metrics(metrics)
-
-        if model_name == "LightGBM":
-            mlflow.lightgbm.log_model(best_model, "model")
-        else:
-            mlflow.sklearn.log_model(best_model, "model")
-
-        return best_model, metrics
-
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y,
+    test_size=TEST_SIZE,
+    random_state=RANDOM_STATE,
+    stratify=y
+)
 
 # =====================================================
-# MAIN TRAINING PIPELINE
+# Logistic Regression Experiment
 # =====================================================
 
-def main():
-    os.makedirs(MODEL_OUTPUT_DIR, exist_ok=True)
-    mlflow.set_experiment(EXPERIMENT_NAME)
-
-    print("📥 Loading data...")
-    X, y = load_data()
-
-    print("📦 Loading preprocessing pipeline...")
-    preprocessor = load_preprocessor()
-
-    # Apply preprocessing
-    X_transformed = preprocessor.transform(X)
-
-    print("✂ Splitting train/test...")
-    X_train, X_test, y_train, y_test = train_test_split(
-        X_transformed,
-        y,
-        test_size=TEST_SIZE,
-        random_state=RANDOM_STATE,
-        stratify=y
-    )
-
-    # =================================================
-    # Logistic Regression
-    # =================================================
-
-    log_reg = LogisticRegression(
+log_pipeline = Pipeline([
+    ("preprocessor", preprocessor),
+    ("model", LogisticRegression(
         max_iter=1000,
+        class_weight="balanced",
         random_state=RANDOM_STATE
+    ))
+])
+
+log_param_grid = {
+    "model__C": [0.01, 0.1, 1, 10]
+}
+
+with mlflow.start_run():
+
+    mlflow.log_param("model_type", "LogisticRegression")
+    mlflow.log_param("test_size", TEST_SIZE)
+    mlflow.log_param("random_state", RANDOM_STATE)
+
+    grid = GridSearchCV(
+        log_pipeline,
+        log_param_grid,
+        scoring="roc_auc",
+        cv=5,
+        n_jobs=-1
     )
 
-    log_reg_params = {
-        "C": [0.01, 0.1, 1, 10],
-        "penalty": ["l2"],
-        "solver": ["lbfgs"]
-    }
+    grid.fit(X_train, y_train)
+    best_pipeline = grid.best_estimator_
 
-    log_model, log_metrics = train_and_log_model(
-        "LogisticRegression",
-        log_reg,
-        log_reg_params,
-        X_train, y_train,
-        X_test, y_test
-    )
+    metrics = evaluate_model(best_pipeline, X_test, y_test)
+# new added
+    mlflow.log_metric("accuracy", metrics["accuracy"])
+    mlflow.log_metric("precision", metrics["precision"])
+    mlflow.log_metric("recall", metrics["recall"])
+    mlflow.log_metric("f1_score", metrics["f1_score"])
+    mlflow.log_metric("roc_auc", metrics["roc_auc"])
+
+    mlflow.log_params(grid.best_params_)
+
+    mlflow.sklearn.log_model(best_pipeline, "model")
 
     joblib.dump(
-        log_model,
-        f"{MODEL_OUTPUT_DIR}/logistic_regression_model.joblib"
+        best_pipeline,
+        f"{MODEL_DIR}/logistic_regression_pipeline.joblib"
     )
 
-    # =================================================
-    # LightGBM
-    # =================================================
+    print("✅ Logistic Regression tracked in MLflow")
 
-    lgbm = LGBMClassifier(
-        random_state=RANDOM_STATE,
-        class_weight="balanced"
+# =====================================================
+# LightGBM Experiment
+# =====================================================
+
+lgbm_pipeline = Pipeline([
+    ("preprocessor", preprocessor),
+    ("model", LGBMClassifier(
+        class_weight="balanced",
+        random_state=RANDOM_STATE
+    ))
+])
+
+lgbm_param_grid = {
+    "model__n_estimators": [200],
+    "model__learning_rate": [0.05, 0.1],
+    "model__num_leaves": [31, 50]
+}
+
+with mlflow.start_run():
+
+    mlflow.log_param("model_type", "LightGBM")
+    mlflow.log_param("test_size", TEST_SIZE)
+    mlflow.log_param("random_state", RANDOM_STATE)
+
+    grid = GridSearchCV(
+        lgbm_pipeline,
+        lgbm_param_grid,
+        scoring="roc_auc",
+        cv=5,
+        n_jobs=-1
     )
 
-    lgbm_params = {
-        "n_estimators": [100, 300],
-        "max_depth": [-1, 5, 10],
-        "learning_rate": [0.01, 0.1],
-        "num_leaves": [31, 50]
-    }
+    grid.fit(X_train, y_train)
+    best_pipeline = grid.best_estimator_
 
-    lgbm_model, lgbm_metrics = train_and_log_model(
-        "LightGBM",
-        lgbm,
-        lgbm_params,
-        X_train, y_train,
-        X_test, y_test
-    )
+    metrics = evaluate_model(best_pipeline, X_test, y_test)
+
+        # new added
+    mlflow.log_metric("accuracy", metrics["accuracy"])
+    mlflow.log_metric("precision", metrics["precision"])
+    mlflow.log_metric("recall", metrics["recall"])
+    mlflow.log_metric("f1_score", metrics["f1_score"])
+    mlflow.log_metric("roc_auc", metrics["roc_auc"])
+
+    mlflow.log_params(grid.best_params_)
+
+    mlflow.lightgbm.log_model(best_pipeline, "model")
 
     joblib.dump(
-        lgbm_model,
-        f"{MODEL_OUTPUT_DIR}/lightgbm_model.joblib"
+        best_pipeline,
+        f"{MODEL_DIR}/lightgbm_pipeline.joblib"
     )
 
-    # =================================================
-    # Select & Register Best Model
-    # =================================================
+    print("✅ LightGBM tracked in MLflow")
 
-    print("\n🏆 Selecting best model based on ROC-AUC...")
-
-    if lgbm_metrics["roc_auc"] > log_metrics["roc_auc"]:
-        best_model = lgbm_model
-        best_model_name = "credit_risk_lightgbm"
-        best_metrics = lgbm_metrics
-    else:
-        best_model = log_model
-        best_model_name = "credit_risk_logistic"
-        best_metrics = log_metrics
-
-    print(f"🏆 Best model: {best_model_name}")
-    print("📊 Metrics:", best_metrics)
-
-    # Register best model
-    with mlflow.start_run(run_name="BestModelRegistration"):
-        mlflow.log_metrics(best_metrics)
-        mlflow.sklearn.log_model(
-            best_model,
-            "model",
-            registered_model_name=best_model_name
-        )
-
-    print("✅ Training & registration complete.")
-
-
-# =====================================================
-# ENTRY POINT
-# =====================================================
-
-if __name__ == "__main__":
-    main()
+print("🚀 Training complete. Run 'mlflow ui' to inspect experiments.")
