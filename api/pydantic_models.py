@@ -27,12 +27,12 @@ class PredictionRequest(BaseModel):
 # -------------------------------
 
 class PredictionResponse(BaseModel):
-    risk_probability: float = Field(
-        ..., ge=0, le=1, description="Predicted probability of high credit risk"
-    )
-    is_high_risk: int = Field(
-        ..., description="1 = High Risk, 0 = Low Risk"
-    )
+    risk_probability: float = Field(..., ge=0, le=1, description="Predicted probability of high credit risk")
+    is_high_risk: int = Field(..., description="1 = High Risk, 0 = Low Risk")
+    credit_score: int
+    risk_band: str
+    loan_amount: float = Field(..., description="Predicted loan amount")
+    loan_duration: int = Field(..., description="Predicted loan duration in days")
 
 
 class HealthResponse(BaseModel):
