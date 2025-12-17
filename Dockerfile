@@ -23,12 +23,13 @@ ENV PYTHONUNBUFFERED=1
 # ------------------------------------------------------------
 WORKDIR /app
 
-# ------------------------------------------------------------
-# STEP 4: Install system dependencies (minimal)
-# ------------------------------------------------------------
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
+# Install system dependencies required by some Python packages (e.g., LightGBM)
+# libgomp1 provides libgomp.so.1 used by LightGBM wheels built with GCC
+RUN apt-get update \
+	&& apt-get install -y --no-install-recommends libgomp1 \
+	&& rm -rf /var/lib/apt/lists/*
+
+
 
 # ------------------------------------------------------------
 # STEP 5: Copy and install Python dependencies
@@ -40,7 +41,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # STEP 6: Copy application source code
 # ------------------------------------------------------------
 COPY src/ ./src/
+COPY api/ ./api/
 COPY models/ ./models/
+COPY data/ ./data/
 
 # ------------------------------------------------------------
 # STEP 7: Expose application port
@@ -50,5 +53,6 @@ EXPOSE 8000
 # ------------------------------------------------------------
 # STEP 8: Run FastAPI application
 # ------------------------------------------------------------
-# main.py lives in src/, so module path is src.main:app
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# main FastAPI app entrypoint is `api.main:app`
+# In development you may want to use --reload; for production omit it.
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
