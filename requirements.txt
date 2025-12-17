@@ -3,8 +3,8 @@ matplotlib
 seaborn
 pandas
 pytest
-scikit-learn
-mlflow 
+scikit-learn==1.7.2
+mlflow>=2.4.0
 fastapi
 uvicorn
 joblib
