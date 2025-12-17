@@ -13,7 +13,7 @@ from lightgbm import LGBMRegressor
 import mlflow
 
 # Import from existing modules
-from preprocessing import (
+from src.preprocessing import (
     get_feature_engineering_pipeline,
     NUMERIC_COLS,
     CATEGORICAL_COLS
@@ -132,15 +132,17 @@ def train_lgbm_regressor(X_train, y_train, X_test, y_test, model_name, feature_p
 
     # Log and save model with MLflow
     mlflow.set_tracking_uri("file:./mlruns")
+    mlflow.set_experiment("Loan_Models")
+    
     with mlflow.start_run(run_name=f"LGBM_{model_name}"):
         mlflow.log_param("model_type", "lgbm_regressor")
+        mlflow.log_param("features", "full_pipeline")
         mlflow.log_metric("mse", float(metrics["mse"]))
         mlflow.log_metric("r2", float(metrics["r2"]))
-        try:
-            mlflow.lightgbm.log_model(reg, artifact_path="model")
-        except Exception:
-            # Fallback to sklearn logging if lightgbm flavor isn't available
-            mlflow.sklearn.log_model(best_model, artifact_path="model")
+        
+        # Log the FULL pipeline (preprocessing + model)
+        # This allows direct predict() calls on raw data after loading
+        mlflow.sklearn.log_model(best_model, artifact_path="model")
 
     # Save the model locally
     save_path = os.path.join(MODEL_DIR, f"{model_name}_lgbm_regressor.joblib")
