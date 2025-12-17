@@ -1,4 +1,4 @@
-name : pytohn CICD 
+name: Python CI/CD
 on:
   push:
     branches: [ main ]
@@ -15,7 +15,7 @@ jobs:
       - name: setup python
         uses: actions/setup-python@v5
         with: 
-          pytohn-version: "3.11"
+          python-version: "3.11"
         
       - name: install dependencies
         run: pip install -r requirements.txt
