@@ -5,6 +5,7 @@ data/
 mlruns/
 models/
 mlflow.db
+.pytest_cache
 
 # Python cache files
 __pycache__/
