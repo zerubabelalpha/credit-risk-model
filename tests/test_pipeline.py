@@ -1,6 +1,6 @@
 import pandas as pd
 from src.pipeline import get_feature_engineering_pipeline, build_preprocessor
-from preprocessing import NUMERIC_COLS, CATEGORICAL_COLS
+from src.preprocessing import NUMERIC_COLS, CATEGORICAL_COLS
 
 
 def make_row():
