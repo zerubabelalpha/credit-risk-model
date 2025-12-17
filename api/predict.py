@@ -212,15 +212,39 @@ def predict_risk(models: Dict, input_data: dict):
     # We bypass the 'feature_eng' step (index 0) of the regression pipelines
     # because it relies on batch aggregations which we did manually above.
     
-    # Loan regressors: use same preprocessor to transform features
-    amt_regressor = models["amount"]
-    dur_regressor = models["duration"]
+    # Function to extract step from pipeline or use raw model
+    def get_step(model, step_name):
+        from sklearn.pipeline import Pipeline
+        if isinstance(model, Pipeline):
+            return model.named_steps[step_name]
+        return model
 
-    X_trans_amt = preprocessor.transform(X)
-    loan_amount_pred = amt_regressor.predict(X_trans_amt)[0]
+    # Loan Amount Prediction
+    amt_pipeline = models["amount"]
+    # If it's our trained pipeline, it has "preprocessor" and "regressor" steps
+    # If fallback, it's just a dummy object
+    try:
+        amt_pre = get_step(amt_pipeline, "preprocessor")
+        amt_reg = get_step(amt_pipeline, "regressor")
+        
+        # Transform using the model's OWN preprocessor (not the risk one)
+        X_trans_amt = amt_pre.transform(X)
+        loan_amount_pred = amt_reg.predict(X_trans_amt)[0]
+    except Exception as e:
+        print(f"Warning: Loan amount prediction fallback due to: {e}")
+        loan_amount_pred = amt_pipeline.predict(X)[0] # Fallback for dummy
 
-    X_trans_dur = preprocessor.transform(X)
-    loan_duration_pred = dur_regressor.predict(X_trans_dur)[0]
+    # Loan Duration Prediction
+    dur_pipeline = models["duration"]
+    try:
+        dur_pre = get_step(dur_pipeline, "preprocessor")
+        dur_reg = get_step(dur_pipeline, "regressor")
+        
+        X_trans_dur = dur_pre.transform(X)
+        loan_duration_pred = dur_reg.predict(X_trans_dur)[0]
+    except Exception as e:
+        print(f"Warning: Loan duration prediction fallback due to: {e}")
+        loan_duration_pred = dur_pipeline.predict(X)[0]
 
     score_output["loan_amount"] = round(float(loan_amount_pred), 2)
     score_output["loan_duration"] = int(round(loan_duration_pred))
