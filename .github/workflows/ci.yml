@@ -14,11 +14,11 @@ jobs:
 
       - name: setup python
         uses: actions/setup-python@v5
-        with: 
+        with:   
           python-version: "3.11"
         
       - name: install dependencies
         run: pip install -r requirements.txt
 
       - name: run test
-        run: pytest -q
+        run: python -m pytest
