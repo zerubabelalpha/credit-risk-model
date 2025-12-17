@@ -1,0 +1,28 @@
+.env
+tests/__pycache__
+.vscode
+data/raw/
+mlruns/
+
+*.db
+
+.git/
+.gitignore
+
+# notebooks
+
+notebooks/
+*.ipynb
+
+
+# Test files 
+tests/
+
+# Documentation
+*.md
+ch.md
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo

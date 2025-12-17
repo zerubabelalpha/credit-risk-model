@@ -1,4 +1,12 @@
 .env
 tests/__pycache__
 .vscode
-/data
+data/
+mlruns/
+models/
+mlflow.db
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
