@@ -1,8 +1,10 @@
 .env
 tests/__pycache__
 .vscode
-data/
+data/raw/
 mlruns/
+
+*.db
 
 .git/
 .gitignore
