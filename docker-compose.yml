@@ -1,0 +1,22 @@
+version: "3.9"
+
+services:
+  credit-risk-api:
+    container_name: credit-risk-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      # Optional: mount code for local development (hot reload if you add --reload)
+      - ./src:/app/src
+      - ./api:/app/api
+      - ./models:/app/models
+      - ./data:/app/data
+    # Use the app module that contains the FastAPI app; in dev add --reload
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
